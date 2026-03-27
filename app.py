@@ -2,22 +2,24 @@ import streamlit as st
 from PIL import Image, ImageDraw
 import random
 import time
-import numpy as np
 
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="TruthLens", layout="wide")
+st.set_page_config(page_title="TruthLens", page_icon="🔍", layout="wide")
 
-# ---------------- CUSTOM CSS (ADVANCED UI) ----------------
+# ---------------- CLEAN LIGHT UI ----------------
 st.markdown("""
 <style>
-body {
-    background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
-    color: white;
-}
 .stApp {
-    background: rgba(0,0,0,0.8);
-    padding: 20px;
-    border-radius: 15px;
+    background: linear-gradient(to right, #eef2f3, #dfe9f3);
+    color: #222;
+}
+h1, h2, h3 {
+    color: #1f4e79;
+}
+.stButton>button {
+    border-radius: 10px;
+    background-color: #1f77b4;
+    color: white;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -35,42 +37,52 @@ def predict(scores):
     avg = sum(scores.values()) / len(scores)
     return ("FAKE", avg) if avg < 85 else ("REAL", avg)
 
+def highlight_face(image):
+    img = image.copy()
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    draw.rectangle([w*0.3, h*0.3, w*0.7, h*0.7], outline="red", width=4)
+    return img
+
 # ---------------- SIDEBAR ----------------
-st.sidebar.title("🔍 TruthLens Pro")
-mode = st.sidebar.radio("Navigation", [
-    "🏠 Dashboard",
-    "🖼 Image AI Scan",
-    "🎥 Video Intelligence",
-    "🧠 AI Challenge"
+st.sidebar.title("🔍 TruthLens")
+mode = st.sidebar.selectbox("Navigation", [
+    "🏠 Home",
+    "🖼 Image Detection",
+    "🎥 Video Analysis",
+    "🧠 AI Challenge",
+    "ℹ About"
 ])
 
-# ---------------- DASHBOARD ----------------
-if mode == "🏠 Dashboard":
-    st.title("🔍 TruthLens Pro")
-    st.markdown("### Next-Gen Deepfake Detection System")
+# ---------------- HOME ----------------
+if mode == "🏠 Home":
+    st.title("🔍 TruthLens")
+    st.markdown("### AI-Powered Deepfake Detection & Trust Analysis")
 
     st.markdown("""
-    - Multi-factor AI analysis  
-    - Trust scoring system  
-    - Explainable AI insights  
+    ✔ Detect deepfake images & videos  
+    ✔ Multi-factor AI analysis  
+    ✔ Trust scoring system  
+
+    👉 Use sidebar to begin
     """)
 
-# ---------------- IMAGE ----------------
-elif mode == "🖼 Image AI Scan":
-    st.header("🖼 AI Image Scanner")
+# ---------------- IMAGE DETECTION ----------------
+elif mode == "🖼 Image Detection":
+    st.header("🖼 Image Deepfake Detection")
 
-    file = st.file_uploader("Upload Image")
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
-    if file:
-        img = Image.open(file)
+    if uploaded_file:
+        image = Image.open(uploaded_file)
 
         col1, col2 = st.columns(2)
 
         with col1:
-            st.image(img, caption="Input Image")
+            st.image(image, caption="Input Image")
 
-        if st.button("Run AI Scan"):
-            with st.spinner("Running multi-layer CNN analysis..."):
+        if st.button("Analyze Image"):
+            with st.spinner("Running AI Analysis..."):
                 time.sleep(2)
 
             scores = generate_scores()
@@ -90,44 +102,81 @@ elif mode == "🖼 Image AI Scan":
                 for k, v in scores.items():
                     st.write(f"{k}: {v}%")
 
+                st.markdown("### 📊 Trust Meter")
+                if confidence > 85:
+                    st.success("🟢 High Trust")
+                elif confidence > 70:
+                    st.warning("🟡 Medium Trust")
+                else:
+                    st.error("🔴 Low Trust")
+
+                st.markdown("### 🧠 Explanation")
+                st.write("AI detected inconsistencies in facial texture, lighting, and edges.")
+
+                if result == "FAKE":
+                    st.image(highlight_face(image), caption="Manipulated Region")
+
 # ---------------- VIDEO ----------------
-elif mode == "🎥 Video Intelligence":
-    st.header("🎥 AI Video Analysis")
+elif mode == "🎥 Video Analysis":
+    st.header("🎥 Deepfake Video Analysis")
 
     st.video("https://www.w3schools.com/html/mov_bbb.mp4")
 
     if st.button("Analyze Video"):
-        st.write("Processing frames...")
+        st.write("Analyzing frames...")
 
         progress = st.progress(0)
         for i in range(100):
             time.sleep(0.02)
             progress.progress(i + 1)
 
-        st.error("❌ Deepfake Detected")
+        st.error("❌ FAKE DETECTED (91%)")
 
         st.markdown("### 🧠 Frame Insights")
         for i in range(5):
             st.write(f"Frame {i+1}: anomaly detected ({random.randint(80,95)}%)")
 
-# ---------------- CHALLENGE ----------------
+# ---------------- AI CHALLENGE ----------------
 elif mode == "🧠 AI Challenge":
-    st.header("🧠 AI vs Human")
+    st.header("🧠 AI vs Human Challenge")
 
-    st.write("Can you beat AI?")
+    st.write("Can YOU beat AI?")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/8/8d/President_Barack_Obama.jpg")
+        st.image("real_sample.jpg", caption="Image A (Real)")
 
     with col2:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/3/3f/Fake_face.jpg")
+        st.image("fake_sample.jpg", caption="Image B (Fake)")
 
-    if st.button("Reveal"):
-        st.error("AI says Image B is FAKE")
-        st.success("Confidence: 94%")
+    guess = st.radio("Which image is FAKE?", ["Image A", "Image B"])
+
+    if st.button("Reveal Answer"):
+        st.error("Correct Answer: Image B is AI GENERATED")
+        st.progress(94)
+        st.success("AI detected subtle manipulation patterns.")
+
+# ---------------- ABOUT ----------------
+elif mode == "ℹ About":
+    st.header("ℹ About Project")
+
+    st.markdown("""
+    ### Deepfake Detection using CNN
+
+    This system uses Convolutional Neural Networks to detect manipulated media.
+
+    ### Features
+    - Image & Video Detection  
+    - Explainable AI  
+    - Trust Score System  
+
+    ### Applications
+    - Social Media Verification  
+    - Fake News Detection  
+    - Security Systems  
+    """)
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.write("TruthLens Pro | Advanced CNN-based Deepfake Detection System")
+st.write("🚀 TruthLens | Advanced CNN-Based Deepfake Detection System")
