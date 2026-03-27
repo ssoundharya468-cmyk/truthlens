@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ExifTags
 import numpy as np
 import random
 import time
@@ -7,7 +7,7 @@ import time
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="TruthLens", page_icon="🔍", layout="wide")
 
-# ---------------- CLEAN LIGHT UI ----------------
+# ---------------- UI ----------------
 st.markdown("""
 <style>
 .stApp {
@@ -45,7 +45,7 @@ def highlight_face(image):
     draw.rectangle([w*0.3, h*0.3, w*0.7, h*0.7], outline="red", width=4)
     return img
 
-# 🔥 Heatmap Feature
+# 🔥 Heatmap
 def generate_heatmap(image):
     img = np.array(image)
     heatmap = img.copy()
@@ -53,7 +53,7 @@ def generate_heatmap(image):
     heatmap[int(h*0.3):int(h*0.7), int(w*0.3):int(w*0.7), 0] = 255
     return heatmap
 
-# 🔥 Risk Analysis Feature
+# 🔥 Risk analysis
 def risk_analysis(scores):
     risk = {}
     for k, v in scores.items():
@@ -64,6 +64,28 @@ def risk_analysis(scores):
         else:
             risk[k] = "Low Risk"
     return risk
+
+# 🆕 Metadata feature
+def extract_metadata(image):
+    try:
+        exif = image._getexif()
+        if exif:
+            metadata = {}
+            for tag, value in exif.items():
+                decoded = ExifTags.TAGS.get(tag, tag)
+                metadata[decoded] = value
+            return metadata
+        return None
+    except:
+        return None
+
+# 🆕 Symmetry feature
+def symmetry_score(image):
+    img = np.array(image.convert("L"))
+    flipped = np.fliplr(img)
+    diff = np.abs(img - flipped)
+    score = 100 - (np.mean(diff) / 255 * 100)
+    return round(score, 2)
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🔍 TruthLens")
@@ -78,18 +100,17 @@ mode = st.sidebar.selectbox("Navigation", [
 # ---------------- HOME ----------------
 if mode == "🏠 Home":
     st.title("🔍 TruthLens")
-    st.markdown("### AI-Powered Deepfake Detection & Trust Analysis")
+    st.markdown("### Advanced Deepfake Detection System")
 
     st.markdown("""
-    ✔ Detect deepfake images & videos  
-    ✔ Multi-factor AI analysis  
-    ✔ Heatmap visualization  
-    ✔ Risk scoring system  
-
-    👉 Use sidebar to begin
+    ✔ CNN-based Detection  
+    ✔ Explainable AI (Heatmap)  
+    ✔ Risk Analysis System  
+    ✔ Metadata Forensics  
+    ✔ Facial Symmetry Validation  
     """)
 
-# ---------------- IMAGE DETECTION ----------------
+# ---------------- IMAGE ----------------
 elif mode == "🖼 Image Detection":
     st.header("🖼 Image Deepfake Detection")
 
@@ -130,12 +151,31 @@ elif mode == "🖼 Image Detection":
                     st.write(f"{k}: {v}")
 
                 st.markdown("### 🔥 AI Attention Map")
-                st.image(generate_heatmap(image), caption="Model Focus Regions")
+                st.image(generate_heatmap(image))
+
+                # 🆕 Metadata
+                st.markdown("### 🧾 Metadata Analysis")
+                metadata = extract_metadata(image)
+                if metadata:
+                    for k in list(metadata.keys())[:5]:
+                        st.write(f"{k}: {metadata[k]}")
+                else:
+                    st.warning("⚠️ No metadata found → Possible manipulation")
+
+                # 🆕 Symmetry
+                st.markdown("### 🧬 Facial Symmetry Score")
+                sym = symmetry_score(image)
+                st.write(f"Symmetry Score: {sym}%")
+
+                if sym < 80:
+                    st.warning("⚠️ Low symmetry → Possible deepfake")
+                else:
+                    st.success("✅ Facial structure consistent")
 
                 if result == "FAKE":
                     st.image(highlight_face(image), caption="Manipulated Region")
 
-# ---------------- VIDEO ANALYSIS ----------------
+# ---------------- VIDEO ----------------
 elif mode == "🎥 Video Analysis":
     st.header("🎥 Upload Video for Deepfake Detection")
 
@@ -162,8 +202,6 @@ elif mode == "🎥 Video Analysis":
 elif mode == "🧠 AI Challenge":
     st.header("🧠 AI vs Human Challenge")
 
-    st.write("Can YOU beat AI?")
-
     col1, col2 = st.columns(2)
 
     with col1:
@@ -181,28 +219,22 @@ elif mode == "🧠 AI Challenge":
             st.error("❌ Wrong! Image B is FAKE")
 
         st.progress(94)
-        st.info("AI detected subtle inconsistencies in facial texture and blending.")
 
 # ---------------- ABOUT ----------------
 elif mode == "ℹ About":
     st.header("ℹ About Project")
 
     st.markdown("""
-    ### Deepfake Detection using CNN
+    This system combines CNN-based detection with advanced forensic techniques:
 
-    This system simulates CNN-based detection using multi-factor analysis.
-
-    ### Advanced Features
     - Heatmap Visualization  
-    - Risk Breakdown System  
-    - Video Frame Analysis  
+    - Risk Analysis  
+    - Metadata Forensics  
+    - Facial Symmetry Validation  
 
-    ### Applications
-    - Social Media Verification  
-    - Fake News Detection  
-    - Security Systems  
+    Designed for real-world deepfake detection.
     """)
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.write("🚀 TruthLens | Advanced CNN-Based Deepfake Detection System")
+st.write("🚀 TruthLens | Next-Gen Deepfake Detection System")
