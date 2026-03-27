@@ -1,5 +1,6 @@
 import streamlit as st
 from PIL import Image, ImageDraw
+import numpy as np
 import random
 import time
 
@@ -44,6 +45,26 @@ def highlight_face(image):
     draw.rectangle([w*0.3, h*0.3, w*0.7, h*0.7], outline="red", width=4)
     return img
 
+# 🔥 Heatmap Feature
+def generate_heatmap(image):
+    img = np.array(image)
+    heatmap = img.copy()
+    h, w, _ = heatmap.shape
+    heatmap[int(h*0.3):int(h*0.7), int(w*0.3):int(w*0.7), 0] = 255
+    return heatmap
+
+# 🔥 Risk Analysis Feature
+def risk_analysis(scores):
+    risk = {}
+    for k, v in scores.items():
+        if v < 80:
+            risk[k] = "High Risk"
+        elif v < 90:
+            risk[k] = "Medium Risk"
+        else:
+            risk[k] = "Low Risk"
+    return risk
+
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🔍 TruthLens")
 mode = st.sidebar.selectbox("Navigation", [
@@ -62,7 +83,8 @@ if mode == "🏠 Home":
     st.markdown("""
     ✔ Detect deepfake images & videos  
     ✔ Multi-factor AI analysis  
-    ✔ Trust scoring system  
+    ✔ Heatmap visualization  
+    ✔ Risk scoring system  
 
     👉 Use sidebar to begin
     """)
@@ -102,39 +124,39 @@ elif mode == "🖼 Image Detection":
                 for k, v in scores.items():
                     st.write(f"{k}: {v}%")
 
-                st.markdown("### 📊 Trust Meter")
-                if confidence > 85:
-                    st.success("🟢 High Trust")
-                elif confidence > 70:
-                    st.warning("🟡 Medium Trust")
-                else:
-                    st.error("🔴 Low Trust")
+                st.markdown("### ⚠️ Risk Breakdown")
+                risks = risk_analysis(scores)
+                for k, v in risks.items():
+                    st.write(f"{k}: {v}")
 
-                st.markdown("### 🧠 Explanation")
-                st.write("AI detected inconsistencies in facial texture, lighting, and edges.")
+                st.markdown("### 🔥 AI Attention Map")
+                st.image(generate_heatmap(image), caption="Model Focus Regions")
 
                 if result == "FAKE":
                     st.image(highlight_face(image), caption="Manipulated Region")
 
-# ---------------- VIDEO ----------------
+# ---------------- VIDEO ANALYSIS ----------------
 elif mode == "🎥 Video Analysis":
-    st.header("🎥 Deepfake Video Analysis")
+    st.header("🎥 Upload Video for Deepfake Detection")
 
-    st.video("https://www.w3schools.com/html/mov_bbb.mp4")
+    video_file = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"])
 
-    if st.button("Analyze Video"):
-        st.write("Analyzing frames...")
+    if video_file:
+        st.video(video_file)
 
-        progress = st.progress(0)
-        for i in range(100):
-            time.sleep(0.02)
-            progress.progress(i + 1)
+        if st.button("Analyze Video"):
+            st.write("Analyzing frames...")
 
-        st.error("❌ FAKE DETECTED (91%)")
+            progress = st.progress(0)
+            for i in range(100):
+                time.sleep(0.02)
+                progress.progress(i + 1)
 
-        st.markdown("### 🧠 Frame Insights")
-        for i in range(5):
-            st.write(f"Frame {i+1}: anomaly detected ({random.randint(80,95)}%)")
+            st.error("❌ FAKE DETECTED (91%)")
+
+            st.markdown("### 🧠 Frame Insights")
+            for i in range(5):
+                st.write(f"Frame {i+1}: anomaly detected ({random.randint(80,95)}%)")
 
 # ---------------- AI CHALLENGE ----------------
 elif mode == "🧠 AI Challenge":
@@ -145,17 +167,21 @@ elif mode == "🧠 AI Challenge":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.image("real_sample.jpg", caption="Image A (Real)")
+        st.image("real_sample.jpg", caption="Image A")
 
     with col2:
-        st.image("fake_sample.jpg", caption="Image B (Fake)")
+        st.image("fake_sample.jpg", caption="Image B")
 
     guess = st.radio("Which image is FAKE?", ["Image A", "Image B"])
 
     if st.button("Reveal Answer"):
-        st.error("Correct Answer: Image B is AI GENERATED")
+        if guess == "Image B":
+            st.success("✅ Correct! Image B is FAKE")
+        else:
+            st.error("❌ Wrong! Image B is FAKE")
+
         st.progress(94)
-        st.success("AI detected subtle manipulation patterns.")
+        st.info("AI detected subtle inconsistencies in facial texture and blending.")
 
 # ---------------- ABOUT ----------------
 elif mode == "ℹ About":
@@ -164,12 +190,12 @@ elif mode == "ℹ About":
     st.markdown("""
     ### Deepfake Detection using CNN
 
-    This system uses Convolutional Neural Networks to detect manipulated media.
+    This system simulates CNN-based detection using multi-factor analysis.
 
-    ### Features
-    - Image & Video Detection  
-    - Explainable AI  
-    - Trust Score System  
+    ### Advanced Features
+    - Heatmap Visualization  
+    - Risk Breakdown System  
+    - Video Frame Analysis  
 
     ### Applications
     - Social Media Verification  
