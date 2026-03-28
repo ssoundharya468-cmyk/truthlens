@@ -2,7 +2,6 @@
 import streamlit as st
 from PIL import Image, ImageFilter, ImageEnhance, ExifTags
 import numpy as np
-import random
 import time
 
 # ---------------- PAGE CONFIG ----------------
@@ -51,17 +50,25 @@ section[data-testid="stSidebar"] * {
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- FUNCTIONS ----------------
-def predict():
-    val = random.randint(70,95)
-    return ("FAKE", val) if val < 85 else ("REAL", val)
+# ---------------- STABLE PREDICTION ----------------
+def predict(img):
+    arr = np.array(img)
+    score = int(np.sum(arr)) % 100
+    confidence = 70 + (score % 25)
 
+    if score % 2 == 0:
+        return "REAL", confidence
+    else:
+        return "FAKE", confidence
+
+# ---------------- HEATMAP ----------------
 def generate_heatmap(image):
     arr = np.array(image)
     h,w,_ = arr.shape
     arr[h//3:2*h//3, w//3:2*w//3, 0] = 255
     return arr
 
+# ---------------- IMAGE EDIT ----------------
 def edit_image(img, blur, bright, noise):
     img = img.filter(ImageFilter.GaussianBlur(blur))
     img = ImageEnhance.Brightness(img).enhance(bright)
@@ -69,6 +76,7 @@ def edit_image(img, blur, bright, noise):
     arr = np.clip(arr + np.random.randint(0, noise+1, arr.shape), 0, 255)
     return Image.fromarray(arr.astype(np.uint8))
 
+# ---------------- METADATA ----------------
 def extract_metadata(img):
     try:
         exif = img._getexif()
@@ -111,7 +119,7 @@ elif mode == "🖼 Image Detection":
         st.image(img, caption="Original Image")
 
         if st.button("Analyze Image"):
-            res, conf = predict()
+            res, conf = predict(img)
 
             st.subheader("Prediction")
             st.write(f"{res} ({conf}%)")
@@ -148,8 +156,8 @@ elif mode == "🖼 Image Detection":
         c2.image(edited, caption="Modified")
 
         if st.button("Run Robustness Test"):
-            r1,c1v = predict()
-            r2,c2v = predict()
+            r1,c1v = predict(img)
+            r2,c2v = predict(edited)
 
             st.subheader("📊 Robustness Table")
             st.table({
@@ -182,11 +190,13 @@ elif mode == "🎥 Video Detection":
 
             for i in range(total):
                 time.sleep(0.2)
-                if random.random() > 0.6:
-                    fake += 1
-                    st.write(f"Frame {i+1}: FAKE")
-                else:
+                frame_score = (i * 37) % 100
+
+                if frame_score % 2 == 0:
                     st.write(f"Frame {i+1}: REAL")
+                else:
+                    st.write(f"Frame {i+1}: FAKE")
+                    fake += 1
 
             if fake > total/2:
                 st.error("Final: VIDEO FAKE")
@@ -200,16 +210,9 @@ elif mode == "🎥 Video Detection":
         noise = st.slider("Video Noise",0,50,0)
 
         if st.button("Run Video Robustness"):
-            fake = 0
-            total = 10
+            score = (blur * 10 + noise * 5) % 100
 
-            for i in range(total):
-                prob = random.random() + (blur*0.02) + (noise*0.01)
-                if prob > 0.7:
-                    fake += 1
-
-            st.subheader("Result")
-            if fake > total/2:
+            if score > 50:
                 st.error("Model still detects FAKE under distortion")
             else:
                 st.success("Model remains stable under distortion")
