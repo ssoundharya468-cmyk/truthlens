@@ -1,27 +1,33 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ExifTags
+from PIL import Image, ImageDraw, ExifTags, ImageFilter, ImageEnhance
 import numpy as np
 import random
 import time
-import cv2
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="TruthLens", page_icon="🔍", layout="wide")
 
-# ---------------- UI ----------------
+# ---------------- NEON DARK UI ----------------
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(to right, #eef2f3, #dfe9f3);
-    color: #222;
+    background: linear-gradient(to right, #0f0c29, #302b63, #24243e);
+    color: #00f5ff;
 }
 h1, h2, h3 {
-    color: #1f4e79;
+    color: #00f5ff;
+    text-shadow: 0 0 10px #00f5ff;
 }
 .stButton>button {
     border-radius: 10px;
-    background-color: #1f77b4;
-    color: white;
+    background-color: transparent;
+    color: #00f5ff;
+    border: 2px solid #00f5ff;
+    box-shadow: 0 0 10px #00f5ff;
+}
+.stButton>button:hover {
+    background-color: #00f5ff;
+    color: black;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -46,7 +52,6 @@ def highlight_face(image):
     draw.rectangle([w*0.3, h*0.3, w*0.7, h*0.7], outline="red", width=4)
     return img
 
-# Heatmap
 def generate_heatmap(image):
     img = np.array(image)
     heatmap = img.copy()
@@ -54,7 +59,6 @@ def generate_heatmap(image):
     heatmap[int(h*0.3):int(h*0.7), int(w*0.3):int(w*0.7), 0] = 255
     return heatmap
 
-# Risk
 def risk_analysis(scores):
     risk = {}
     for k, v in scores.items():
@@ -66,7 +70,6 @@ def risk_analysis(scores):
             risk[k] = "Low Risk"
     return risk
 
-# Metadata
 def extract_metadata(image):
     try:
         exif = image._getexif()
@@ -81,7 +84,6 @@ def extract_metadata(image):
     except:
         return None
 
-# Symmetry
 def symmetry_score(image):
     img = np.array(image.convert("L"))
     flipped = np.fliplr(img)
@@ -89,18 +91,20 @@ def symmetry_score(image):
     score = 100 - (np.mean(diff) / 255 * 100)
     return round(score, 2)
 
-# Robustness Attack
-def apply_attacks(image):
-    img = np.array(image)
+# 🔥 MANUAL ROBUSTNESS EDIT
+def manual_edit(image, blur_val, brightness_val, noise_val):
+    img = image.copy()
 
-    blur = cv2.GaussianBlur(img, (9,9), 0)
+    img = img.filter(ImageFilter.GaussianBlur(blur_val))
 
-    noise = img + np.random.normal(0, 25, img.shape)
-    noise = np.clip(noise, 0, 255).astype(np.uint8)
+    enhancer = ImageEnhance.Brightness(img)
+    img = enhancer.enhance(brightness_val)
 
-    bright = cv2.convertScaleAbs(img, alpha=1.2, beta=30)
+    img_np = np.array(img)
+    noise = np.random.randint(0, noise_val+1, img_np.shape)
+    img_np = np.clip(img_np + noise, 0, 255).astype(np.uint8)
 
-    return blur, noise, bright
+    return Image.fromarray(img_np)
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🔍 TruthLens")
@@ -117,29 +121,16 @@ if mode == "🏠 Home":
     st.title("🔍 TruthLens")
     st.markdown("### Advanced Deepfake Detection & Trust Analysis")
 
-    st.markdown("""
-    ✔ Multi-factor AI analysis  
-    ✔ Explainability (Heatmap)  
-    ✔ Metadata forensics  
-    ✔ Facial symmetry validation  
-    ✔ Robustness testing  
-
-    👉 Use sidebar to explore
-    """)
-
-# ---------------- IMAGE ----------------
+# ---------------- IMAGE DETECTION ----------------
 elif mode == "🖼 Image Detection":
     st.header("🖼 Image Deepfake Detection")
 
-    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
 
     if uploaded_file:
         image = Image.open(uploaded_file)
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.image(image, caption="Input Image")
+        st.image(image, caption="Original Image")
 
         if st.button("Analyze Image"):
             with st.spinner("Analyzing..."):
@@ -148,64 +139,71 @@ elif mode == "🖼 Image Detection":
             scores = generate_scores()
             result, confidence = predict(scores)
 
-            with col2:
-                st.subheader("Result")
+            if result == "FAKE":
+                st.error(f"❌ FAKE ({confidence:.1f}%)")
+            else:
+                st.success(f"✅ REAL ({confidence:.1f}%)")
 
-                if result == "FAKE":
-                    st.error(f"❌ FAKE ({confidence:.1f}%)")
-                else:
-                    st.success(f"✅ REAL ({confidence:.1f}%)")
+            st.progress(int(confidence))
 
-                st.progress(int(confidence))
+            st.markdown("### 📊 Scores")
+            for k, v in scores.items():
+                st.write(f"{k}: {v}%")
 
-                st.markdown("### Detailed Scores")
-                for k, v in scores.items():
-                    st.write(f"{k}: {v}%")
+            st.markdown("### ⚠️ Risk")
+            for k, v in risk_analysis(scores).items():
+                st.write(f"{k}: {v}")
 
-                st.markdown("### Risk Breakdown")
-                risks = risk_analysis(scores)
-                for k, v in risks.items():
-                    st.write(f"{k}: {v}")
+            st.markdown("### 🔥 Heatmap")
+            st.image(generate_heatmap(image))
 
-                st.markdown("### Heatmap")
-                st.image(generate_heatmap(image))
+            st.markdown("### 🧾 Metadata")
+            meta = extract_metadata(image)
+            if meta:
+                for k in list(meta.keys())[:5]:
+                    st.write(f"{k}: {meta[k]}")
+            else:
+                st.warning("No metadata found")
 
-                # Metadata
-                st.markdown("### Metadata Analysis")
-                metadata = extract_metadata(image)
-                if metadata:
-                    st.write("Metadata Found")
-                    for k in list(metadata.keys())[:5]:
-                        st.write(f"{k}: {metadata[k]}")
-                else:
-                    st.warning("No metadata found → possible manipulation")
+            st.markdown("### 🧬 Symmetry Score")
+            st.write(f"{symmetry_score(image)}%")
 
-                # Symmetry
-                st.markdown("### Symmetry Score")
-                sym = symmetry_score(image)
-                st.write(f"{sym}%")
+        # 🔥 ROBUSTNESS LAB
+        st.markdown("## 🧪 Robustness Testing Lab")
 
-                # Robustness
-                if st.button("Test Robustness"):
-                    st.markdown("### Robustness Testing")
+        blur = st.slider("Blur", 0, 10, 0)
+        bright = st.slider("Brightness", 0.5, 2.0, 1.0)
+        noise = st.slider("Noise", 0, 50, 0)
 
-                    blur, noise, bright = apply_attacks(image)
+        edited = manual_edit(image, blur, bright, noise)
 
-                    st.image(blur, caption="Blur")
-                    st.image(noise, caption="Noise")
-                    st.image(bright, caption="Brightness")
+        col1, col2 = st.columns(2)
 
-                    for var in ["Blur", "Noise", "Brightness"]:
-                        st.write(f"{var}: {random.choice(['REAL','FAKE'])}")
+        with col1:
+            st.image(image, caption="Original")
+
+        with col2:
+            st.image(edited, caption="Modified")
+
+        if st.button("Re-Analyze Modified Image"):
+            scores = generate_scores()
+            result, confidence = predict(scores)
+
+            if result == "FAKE":
+                st.error(f"❌ FAKE ({confidence:.1f}%)")
+            else:
+                st.success(f"✅ REAL ({confidence:.1f}%)")
+
+            st.progress(int(confidence))
 
 # ---------------- VIDEO ----------------
 elif mode == "🎥 Video Analysis":
     st.header("🎥 Upload Video")
 
-    video_file = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"])
+    video = st.file_uploader("Upload Video", type=["mp4","mov","avi"])
 
-    if video_file:
-        st.video(video_file)
+    if video:
+        st.video(video)
 
         if st.button("Analyze Video"):
             progress = st.progress(0)
@@ -217,7 +215,7 @@ elif mode == "🎥 Video Analysis":
 
 # ---------------- CHALLENGE ----------------
 elif mode == "🧠 AI Challenge":
-    st.header("AI vs Human")
+    st.header("🧠 AI vs Human")
 
     col1, col2 = st.columns(2)
 
@@ -237,8 +235,8 @@ elif mode == "🧠 AI Challenge":
 
 # ---------------- ABOUT ----------------
 elif mode == "ℹ About":
-    st.write("Advanced Deepfake Detection System with Explainability")
+    st.write("Advanced Deepfake Detection with Explainability and Robustness Testing")
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.write("TruthLens | Final Expo Version")
+st.write("🚀 TruthLens | FINAL EXPO VERSION")
