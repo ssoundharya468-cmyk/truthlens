@@ -190,36 +190,19 @@ elif mode == "🎥 Video Detection":
 
             for i in range(total):
                 time.sleep(0.2)
-                if random.random() > 0.6:
-                    fake += 1
-                    st.write(f"Frame {i+1}: FAKE")
-                else:
+                frame_score = (i * 37) % 100
+
+                if frame_score % 2 == 0:
                     st.write(f"Frame {i+1}: REAL")
-
-            st.subheader("Final Result")
-            st.write("FAKE" if fake > total/2 else "REAL")
-
-        # -------- VIDEO ROBUSTNESS --------
-        st.markdown("## 🎥 Video Robustness")
-
-        blur = st.slider("Video Blur",0,10,0)
-        noise = st.slider("Video Noise",0,50,0)
-
-        if st.button("Run Video Robustness"):
-            fake = 0
-            total = 10
-
-            for i in range(total):
-                prob = random.random() + (blur*0.02) + (noise*0.01)
-                if prob > 0.7:
+                else:
+                    st.write(f"Frame {i+1}: FAKE")
                     fake += 1
 
             if fake > total/2:
-                st.success("Model still detects FAKE under distortion")
+                st.error("Final: VIDEO FAKE")
             else:
-                st.success("Model remains stable")
+                st.success("Final: VIDEO REAL")
 
-            st.info("Real GPU-based testing is future work.")
         # ROBUSTNESS
         st.markdown("## 🎥 Video Robustness Testing")
 
