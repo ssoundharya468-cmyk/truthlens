@@ -234,22 +234,7 @@ elif mode == "🎥 Video Detection":
                 st.success("Model remains REAL under distortion")
 
             st.info("Robustness uses same decision logic with distortion factors applied.")
-        # ROBUSTNESS
-        st.markdown("## 🎥 Video Robustness Testing")
-
-        blur = st.slider("Video Blur",0,10,0)
-        noise = st.slider("Video Noise",0,50,0)
-
-        if st.button("Run Video Robustness"):
-            score = (blur * 10 + noise * 5) % 100
-
-            if score > 50:
-                st.error("Model still detects FAKE under distortion")
-            else:
-                st.success("Model remains stable under distortion")
-
-            st.info("Simulation of real-world distortions.")
-
+        
 # ---------------- CHALLENGE ----------------
 elif mode == "🧠 AI Challenge":
     st.header("🧠 AI vs Human")
