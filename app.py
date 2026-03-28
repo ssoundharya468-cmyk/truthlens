@@ -1,6 +1,6 @@
 # ---------------- IMPORTS ----------------
 import streamlit as st
-from PIL import Image, ImageFilter, ImageEnhance
+from PIL import Image, ImageFilter, ImageEnhance, ExifTags
 import numpy as np
 import random
 import time
@@ -69,6 +69,19 @@ def edit_image(img, blur, bright, noise):
     arr = np.clip(arr + np.random.randint(0, noise+1, arr.shape), 0, 255)
     return Image.fromarray(arr.astype(np.uint8))
 
+def extract_metadata(img):
+    try:
+        exif = img._getexif()
+        if exif:
+            data = {}
+            for tag, val in exif.items():
+                key = ExifTags.TAGS.get(tag, tag)
+                data[key] = val
+            return data
+    except:
+        return None
+    return None
+
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🔍 TruthLens")
 mode = st.sidebar.selectbox("Navigation",[
@@ -108,6 +121,19 @@ elif mode == "🖼 Image Detection":
             st.image(generate_heatmap(img))
             st.write("Red regions indicate possible manipulation areas.")
 
+            # METADATA
+            st.subheader("🧾 Metadata Analysis")
+            meta = extract_metadata(img)
+
+            if meta:
+                st.success("Metadata Found (Likely Original Image)")
+                for key in list(meta.keys())[:5]:
+                    st.write(f"{key}: {meta[key]}")
+            else:
+                st.error("No Metadata Found (Possible Manipulation or Compression)")
+
+            st.info("Metadata helps identify camera source and editing history.")
+
         # -------- ROBUSTNESS --------
         st.markdown("## 🧪 Image Robustness Testing")
 
@@ -125,7 +151,6 @@ elif mode == "🖼 Image Detection":
             r1,c1v = predict()
             r2,c2v = predict()
 
-            # TABLE
             st.subheader("📊 Robustness Table")
             st.table({
                 "Type":["Original","Modified"],
@@ -133,7 +158,6 @@ elif mode == "🖼 Image Detection":
                 "Confidence":[c1v,c2v]
             })
 
-            # FINAL DECISION
             st.subheader("🎯 Final Decision")
 
             if r1 == "REAL" and r2 == "REAL":
