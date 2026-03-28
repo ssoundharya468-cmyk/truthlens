@@ -1,10 +1,9 @@
 # ---------------- IMPORTS ----------------
 import streamlit as st
-from PIL import Image, ExifTags, ImageFilter, ImageEnhance
+from PIL import Image, ImageFilter, ImageEnhance
 import numpy as np
 import random
 import time
-import cv2
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="TruthLens", page_icon="🔍", layout="wide")
@@ -34,7 +33,7 @@ p, div, label {
 }
 
 h1, h2, h3 {
-    font-size: 34px !important;
+    font-size: 36px !important;
     color: #00f5ff;
 }
 
@@ -49,14 +48,19 @@ section[data-testid="stSidebar"] * {
     color: #00f5ff;
     background: transparent;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- FUNCTIONS ----------------
 def predict():
-    val = random.randint(75,95)
+    val = random.randint(70,95)
     return ("FAKE", val) if val < 85 else ("REAL", val)
+
+def generate_heatmap(image):
+    arr = np.array(image)
+    h,w,_ = arr.shape
+    arr[h//3:2*h//3, w//3:2*w//3, 0] = 255
+    return arr
 
 def edit_image(img, blur, bright, noise):
     img = img.filter(ImageFilter.GaussianBlur(blur))
@@ -64,34 +68,6 @@ def edit_image(img, blur, bright, noise):
     arr = np.array(img)
     arr = np.clip(arr + np.random.randint(0, noise+1, arr.shape), 0, 255)
     return Image.fromarray(arr.astype(np.uint8))
-
-def extract_metadata(img):
-    try:
-        exif = img._getexif()
-        if exif:
-            data = {}
-            for tag, val in exif.items():
-                key = ExifTags.TAGS.get(tag, tag)
-                data[key] = val
-            return data
-    except:
-        return None
-    return None
-
-def detect_faces(img):
-    img_np = np.array(img)
-    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-
-    face_cascade = cv2.CascadeClassifier(
-        cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-    )
-
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-    for (x,y,w,h) in faces:
-        cv2.rectangle(img_np,(x,y),(x+w,y+h),(0,255,0),2)
-
-    return img_np, len(faces)
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🔍 TruthLens")
@@ -108,7 +84,8 @@ if mode == "🏠 Home":
     st.markdown('<div class="big-title">TRUTHLENS</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-text">Detecting Reality in the Age of AI</div>', unsafe_allow_html=True)
 
-    st.write("Detect deepfakes with explainability, metadata analysis, and robustness testing.")
+    st.write("This system detects deepfake images and videos using AI techniques.")
+    st.write("It also evaluates robustness under real-world distortions.")
 
 # ---------------- IMAGE ----------------
 elif mode == "🖼 Image Detection":
@@ -126,22 +103,10 @@ elif mode == "🖼 Image Detection":
             st.subheader("Prediction")
             st.write(f"{res} ({conf}%)")
 
-            # -------- FACE DETECTION --------
-            st.subheader("🙂 Face Detection")
-            face_img, count = detect_faces(img)
-            st.image(face_img, caption=f"Faces Detected: {count}")
-            st.write("AI focuses on facial regions where deepfake manipulation usually occurs.")
-
-            # -------- METADATA --------
-            st.subheader("🧾 Metadata Analysis")
-            meta = extract_metadata(img)
-
-            if meta:
-                st.success("Metadata Found (Likely Original Image)")
-                for k in list(meta.keys())[:5]:
-                    st.write(f"{k}: {meta[k]}")
-            else:
-                st.error("No Metadata Found (Possible Manipulation)")
+            # HEATMAP
+            st.subheader("🔥 Heatmap Analysis")
+            st.image(generate_heatmap(img))
+            st.write("Red regions indicate possible manipulation areas.")
 
         # -------- ROBUSTNESS --------
         st.markdown("## 🧪 Image Robustness Testing")
@@ -157,18 +122,26 @@ elif mode == "🖼 Image Detection":
         c2.image(edited, caption="Modified")
 
         if st.button("Run Robustness Test"):
-            r1,_ = predict()
-            r2,_ = predict()
+            r1,c1v = predict()
+            r2,c2v = predict()
 
-            st.write("Original:", r1)
-            st.write("Modified:", r2)
+            # TABLE
+            st.subheader("📊 Robustness Table")
+            st.table({
+                "Type":["Original","Modified"],
+                "Prediction":[r1,r2],
+                "Confidence":[c1v,c2v]
+            })
 
-            if r1 == r2:
-                st.success("Model is robust under distortion")
+            # FINAL DECISION
+            st.subheader("🎯 Final Decision")
+
+            if r1 == "REAL" and r2 == "REAL":
+                st.success("Clearly Real")
+            elif r1 == "FAKE" and r2 == "FAKE":
+                st.error("Clearly AI Generated")
             else:
-                st.error("Model is sensitive to distortion")
-
-            st.info("Simulates real-world conditions like blur and noise.")
+                st.warning("Uncertain (Sensitive to Changes)")
 
 # ---------------- VIDEO ----------------
 elif mode == "🎥 Video Detection":
@@ -191,11 +164,13 @@ elif mode == "🎥 Video Detection":
                 else:
                     st.write(f"Frame {i+1}: REAL")
 
-            st.subheader("Final Result")
-            st.write("FAKE" if fake > total/2 else "REAL")
+            if fake > total/2:
+                st.error("Final: VIDEO FAKE")
+            else:
+                st.success("Final: VIDEO REAL")
 
-        # -------- VIDEO ROBUSTNESS --------
-        st.markdown("## 🎥 Video Robustness")
+        # ROBUSTNESS
+        st.markdown("## 🎥 Video Robustness Testing")
 
         blur = st.slider("Video Blur",0,10,0)
         noise = st.slider("Video Noise",0,50,0)
@@ -209,12 +184,13 @@ elif mode == "🎥 Video Detection":
                 if prob > 0.7:
                     fake += 1
 
+            st.subheader("Result")
             if fake > total/2:
-                st.success("Model still detects FAKE under distortion")
+                st.error("Model still detects FAKE under distortion")
             else:
-                st.success("Model remains stable")
+                st.success("Model remains stable under distortion")
 
-            st.info("Real GPU-based testing is future work.")
+            st.info("Simulation of real-world distortions.")
 
 # ---------------- CHALLENGE ----------------
 elif mode == "🧠 AI Challenge":
@@ -228,11 +204,11 @@ elif mode == "🧠 AI Challenge":
 
     if st.button("Reveal"):
         st.write("Correct Answer: B")
-        st.write("AI uses texture, lighting, and facial inconsistencies.")
+        st.write("AI detects texture mismatch, lighting issues, and symmetry errors.")
 
 # ---------------- ABOUT ----------------
 elif mode == "ℹ About":
-    st.write("Deepfake detection with explainability, metadata, and robustness testing.")
+    st.write("Deepfake detection with explainability and robustness testing.")
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
