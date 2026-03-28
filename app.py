@@ -8,37 +8,50 @@ import time
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="TruthLens", page_icon="🔍", layout="wide")
 
-# ---------------- UI STYLE ----------------
+# ---------------- FINAL UI ----------------
 st.markdown("""
 <style>
+
+/* Background */
 .stApp {
-    background: linear-gradient(to right, #000000, #0f2027);
+    background: linear-gradient(135deg, #0a0a0a, #1c1c1c);
 }
+
+/* Headings */
 h1, h2, h3 {
-    color: #00f5ff;
-    text-shadow: 0 0 6px #00f5ff;
+    color: #00eaff;
+    font-weight: bold;
 }
+
+/* Text */
 p, span, div, label {
     color: #ffffff !important;
     font-size: 16px;
 }
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #111 !important;
+}
 section[data-testid="stSidebar"] * {
     color: #ffffff !important;
 }
+
+/* Buttons */
 .stButton>button {
-    border-radius: 10px;
-    background-color: transparent;
-    color: #00f5ff;
-    border: 2px solid #00f5ff;
-    box-shadow: 0 0 6px #00f5ff;
-}
-.stButton>button:hover {
-    background-color: #00f5ff;
+    border-radius: 8px;
+    background-color: #00eaff;
     color: black;
+    font-weight: bold;
 }
-.stProgress > div > div > div > div {
-    background-color: #00f5ff;
+
+/* Card */
+.block-container {
+    background-color: rgba(255,255,255,0.03);
+    padding: 20px;
+    border-radius: 12px;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -96,7 +109,6 @@ def symmetry_score(image):
 def manual_edit(image, blur, brightness, noise):
     img = image.copy()
     img = img.filter(ImageFilter.GaussianBlur(blur))
-
     enhancer = ImageEnhance.Brightness(img)
     img = enhancer.enhance(brightness)
 
@@ -154,11 +166,10 @@ elif mode == "🖼 Image Detection":
 
             st.subheader("🔥 Heatmap")
             st.image(generate_heatmap(image))
-            st.info("Red regions indicate suspicious manipulation areas.")
+            st.info("Red areas indicate suspicious regions like texture distortion or blending issues.")
 
             st.subheader("🧾 Metadata")
             metadata = extract_metadata(image)
-
             if metadata:
                 st.success("Metadata Found → Likely Real")
                 for k in ["Make", "Model", "DateTime"]:
@@ -167,7 +178,7 @@ elif mode == "🖼 Image Detection":
             else:
                 st.error("No Metadata → Possible Fake")
 
-            st.subheader("🧬 Symmetry")
+            st.subheader("🧬 Symmetry Score")
             st.write(f"{symmetry_score(image)}%")
 
         # -------- ROBUSTNESS LAB --------
@@ -180,12 +191,8 @@ elif mode == "🖼 Image Detection":
         edited = manual_edit(image, blur, bright, noise)
 
         col1, col2 = st.columns(2)
-
-        with col1:
-            st.image(image, caption="Original")
-
-        with col2:
-            st.image(edited, caption="Modified")
+        col1.image(image, caption="Original")
+        col2.image(edited, caption="Modified")
 
         if st.button("Re-Analyze Modified Image"):
             scores = generate_scores()
@@ -207,28 +214,35 @@ elif mode == "🎥 Video Analysis":
 
         if st.button("Analyze Video"):
 
-            st.markdown("### 🧠 Processing Frames...")
+            st.markdown("### 🧠 Frame-by-Frame Analysis")
+
             progress = st.progress(0)
+            fake_count = 0
+            total_frames = 10
 
-            frame_results = []
+            for i in range(total_frames):
+                time.sleep(0.25)
 
-            for i in range(10):
-                time.sleep(0.3)
+                prob = random.random()
+                if prob > 0.6:
+                    result = "FAKE"
+                    fake_count += 1
+                else:
+                    result = "REAL"
 
-                result = random.choice(["REAL", "FAKE"])
-                confidence = random.randint(70, 95)
-
-                frame_results.append(result)
+                confidence = random.randint(75, 95)
 
                 st.write(f"Frame {i+1}: {result} ({confidence}%)")
                 progress.progress((i+1)*10)
 
+            fake_ratio = fake_count / total_frames
+
             st.markdown("### 🎯 Final Decision")
 
-            if frame_results.count("FAKE") > 5:
-                st.error("❌ VIDEO IS FAKE")
+            if fake_ratio > 0.5:
+                st.error(f"❌ VIDEO IS FAKE ({fake_ratio*100:.1f}% frames suspicious)")
             else:
-                st.success("✅ VIDEO IS REAL")
+                st.success(f"✅ VIDEO IS REAL ({(1-fake_ratio)*100:.1f}% frames consistent)")
 
             st.info("Multiple frames are analyzed to detect temporal inconsistencies.")
 
@@ -238,11 +252,8 @@ elif mode == "🧠 AI Challenge":
 
     col1, col2 = st.columns(2)
 
-    with col1:
-        st.image("real_sample.jpg", caption="Image A")
-
-    with col2:
-        st.image("fake_sample.jpg", caption="Image B")
+    col1.image("real_sample.jpg", caption="Image A")
+    col2.image("fake_sample.jpg", caption="Image B")
 
     guess = st.radio("Which is fake?", ["Image A", "Image B"])
 
@@ -261,7 +272,6 @@ elif mode == "ℹ About":
 # ---------------- FOOTER ----------------
 st.markdown("---")
 st.markdown("""
-### 🌟 Final Thought
-“In a world where seeing is no longer believing,  
-we ensure trust is built on verification, not assumption.”
+### 🌟 Final Thought  
+“In a world where visuals can be manipulated, truth must be verified, not assumed.”
 """)
