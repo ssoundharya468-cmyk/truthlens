@@ -17,17 +17,18 @@ st.markdown("""
     background: linear-gradient(135deg, #0a0f1a, #0d1117);
 }
 
-/* BIG HOMEPAGE TEXT */
+/* BIG TITLE */
 .big-title {
-    font-size: 60px;
+    font-size: 70px;
     color: #00f5ff;
     text-align: center;
-    text-shadow: 0 0 10px #00f5ff;
+    text-shadow: 0 0 12px #00f5ff;
     font-weight: bold;
 }
 
+/* Subtitle */
 .sub-text {
-    font-size: 22px;
+    font-size: 26px;
     color: #c9d1d9;
     text-align: center;
 }
@@ -35,13 +36,13 @@ st.markdown("""
 /* Headings */
 h1, h2, h3 {
     color: #00f5ff;
-    text-shadow: 0 0 5px #00f5ff;
+    font-size: 32px !important;
 }
 
-/* Normal text */
+/* Body text */
 p, span, div, label {
     color: #e6edf3 !important;
-    font-size: 16px;
+    font-size: 18px !important;
 }
 
 /* Sidebar */
@@ -50,21 +51,24 @@ section[data-testid="stSidebar"] {
 }
 section[data-testid="stSidebar"] * {
     color: #00f5ff !important;
+    font-size: 18px !important;
     font-weight: 600;
 }
 
 /* Buttons */
 .stButton>button {
-    background-color: transparent;
-    color: #00f5ff;
+    font-size: 18px;
+    padding: 10px;
     border: 1px solid #00f5ff;
-    box-shadow: 0 0 6px #00f5ff;
+    color: #00f5ff;
+    background: transparent;
 }
 
 /* Inputs */
 input, textarea {
     background-color: #161b22 !important;
     color: white !important;
+    font-size: 16px !important;
 }
 
 /* File uploader */
@@ -126,9 +130,7 @@ if mode=="🏠 Home":
     st.markdown('<div class="big-title">TRUTHLENS</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-text">Detecting Reality in the Age of AI</div>', unsafe_allow_html=True)
 
-    st.write("")
-    st.write("This system uses multiple AI-based factors to detect deepfake images and videos.")
-    st.write("It also provides explainability, robustness testing, and interactive challenges.")
+    st.write("This system detects deepfakes using explainable AI and robustness testing.")
 
 # ---------------- IMAGE ----------------
 elif mode=="🖼 Image Detection":
@@ -146,19 +148,39 @@ elif mode=="🖼 Image Detection":
 
             st.subheader("Result")
             st.write(f"{result} ({conf:.1f}%)")
-
             st.progress(int(conf))
 
-            st.subheader("Factors")
-            for k,v in scores.items():
-                st.write(f"{k}: {v}%")
-
-            st.subheader("Heatmap Explanation")
+            st.subheader("Heatmap")
             st.image(generate_heatmap(img))
-            st.write("AI highlights regions with texture inconsistencies.")
 
-            st.subheader("Symmetry Score")
-            st.write(symmetry_score(img))
+        # -------- IMAGE ROBUSTNESS (UPGRADED) --------
+        st.markdown("## 🧪 Image Robustness Testing")
+        st.write("Modify the image and check if detection changes.")
+
+        b=st.slider("Blur Level",0,10,0)
+        br=st.slider("Brightness",0.5,2.0,1.0)
+        n=st.slider("Noise Level",0,50,0)
+
+        edited=manual_edit(img,b,br,n)
+
+        c1,c2=st.columns(2)
+        c1.image(img,"Original")
+        c2.image(edited,"Modified")
+
+        if st.button("Run Robustness Test"):
+            s1=generate_scores()
+            r1,_=predict(s1)
+
+            s2=generate_scores()
+            r2,_=predict(s2)
+
+            st.write("Original Result:",r1)
+            st.write("Modified Result:",r2)
+
+            if r1==r2:
+                st.success("Model is ROBUST (consistent prediction)")
+            else:
+                st.error("Model is SENSITIVE to changes")
 
 # ---------------- VIDEO ----------------
 elif mode=="🎥 Video Analysis":
@@ -188,30 +210,27 @@ elif mode=="🎥 Video Analysis":
             ratio=fake/total
 
             st.subheader("Final Decision")
-            if ratio>0.5:
-                st.error("VIDEO FAKE")
-            else:
-                st.success("VIDEO REAL")
+            st.write("FAKE" if ratio>0.5 else "REAL")
 
-        # Robustness
+        # -------- VIDEO ROBUSTNESS --------
         st.markdown("## 🎥 Video Robustness")
         blur=st.slider("Blur",0,10,0)
         noise=st.slider("Noise",0,50,0)
 
-        if st.button("Test Robustness"):
+        if st.button("Test Video Robustness"):
             fake=0
             total=10
             for i in range(total):
                 if random.random()+(blur*0.02)+(noise*0.01)>0.7:
                     fake+=1
 
-            st.write("Robustness Result:", "Stable" if fake<5 else "Sensitive")
+            st.write("Robustness:", "Stable" if fake<5 else "Sensitive")
 
 # ---------------- CHALLENGE ----------------
 elif mode=="🧠 AI Challenge":
     st.header("🧠 AI vs Human Challenge")
 
-    st.write("Try to identify which image is fake and see how AI explains it.")
+    st.write("Guess the fake image and understand AI reasoning.")
 
     c1,c2=st.columns(2)
     c1.image("real_sample.jpg","Image A")
@@ -219,23 +238,14 @@ elif mode=="🧠 AI Challenge":
 
     choice=st.radio("Select Fake Image",["Image A","Image B"])
 
-    if st.button("Reveal Answer"):
-        st.subheader("Correct Answer: Image B")
-
-        if choice=="Image B":
-            st.success("Correct!")
-        else:
-            st.error("Incorrect!")
-
-        st.subheader("AI Explanation")
+    if st.button("Reveal"):
+        st.write("Correct Answer: Image B")
         st.write("""
-AI identifies fake images using:
+AI detects:
 - Texture inconsistencies
-- Unnatural lighting
+- Lighting mismatch
 - Symmetry imbalance
 - Edge blending errors
-
-Humans often miss these subtle patterns, but AI detects them precisely.
 """)
 
 # ---------------- ABOUT ----------------
@@ -244,4 +254,4 @@ elif mode=="ℹ About":
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.markdown("### “Truth is not seen, it is verified.”")
+st.markdown("### “Truth is verified, not assumed.”")
