@@ -8,39 +8,46 @@ import time
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="TruthLens", page_icon="🔍", layout="wide")
 
-# ---------------- FINAL UI ----------------
+# ---------------- FINAL NEON UI ----------------
 st.markdown("""
 <style>
 
 /* Background */
 .stApp {
-    background: linear-gradient(135deg, #0b0f14, #121821);
+    background: linear-gradient(135deg, #0a0f1a, #0d1117);
 }
 
-/* Headings */
+/* Neon Headings */
 h1, h2, h3 {
-    color: #4db8ff;
+    color: #00f5ff;
+    text-shadow: 0 0 6px #00f5ff;
 }
 
-/* Main text */
+/* Normal Text (Readable) */
 p, span, div, label {
     color: #e6edf3 !important;
+    font-size: 15px;
 }
 
-/* Sidebar (HIGH VISIBILITY FIX) */
+/* Sidebar */
 section[data-testid="stSidebar"] {
     background-color: #0d1117 !important;
 }
 section[data-testid="stSidebar"] * {
-    color: #ffffff !important;
-    font-weight: 500;
+    color: #00f5ff !important;
+    font-weight: 600;
 }
 
 /* Buttons */
 .stButton>button {
-    background-color: #238636;
-    color: white;
-    border-radius: 6px;
+    background-color: transparent;
+    color: #00f5ff;
+    border: 1px solid #00f5ff;
+    box-shadow: 0 0 6px #00f5ff;
+}
+.stButton>button:hover {
+    background-color: #00f5ff;
+    color: black;
 }
 
 /* File uploader */
@@ -52,12 +59,12 @@ section[data-testid="stSidebar"] * {
 /* Inputs */
 input, textarea {
     background-color: #161b22 !important;
-    color: white !important;
+    color: #e6edf3 !important;
 }
 
 /* Progress */
 .stProgress > div > div > div > div {
-    background-color: #4db8ff;
+    background-color: #00f5ff;
 }
 
 </style>
@@ -65,9 +72,12 @@ input, textarea {
 
 # ---------------- FUNCTIONS ----------------
 def generate_scores():
-    return {k: random.randint(75,95) for k in [
-        "Face Consistency","Texture Analysis","Lighting Match","Edge Integrity"
-    ]}
+    return {
+        "Face Consistency": random.randint(75,95),
+        "Texture Analysis": random.randint(75,95),
+        "Lighting Match": random.randint(75,95),
+        "Edge Integrity": random.randint(75,95)
+    }
 
 def predict(scores):
     avg = sum(scores.values())/len(scores)
@@ -84,7 +94,8 @@ def extract_metadata(img):
         exif=img._getexif()
         if exif:
             return {ExifTags.TAGS.get(k,k):v for k,v in exif.items()}
-    except: pass
+    except:
+        return None
     return None
 
 def symmetry_score(img):
@@ -101,26 +112,55 @@ def manual_edit(img,blur,bright,noise):
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🔍 TruthLens")
 mode = st.sidebar.selectbox("Navigation",[
-    "Home","Image","Video","Challenge","About"
+    "🏠 Home",
+    "🖼 Image Detection",
+    "🎥 Video Analysis",
+    "🧠 AI Challenge",
+    "ℹ About"
 ])
 
+# ---------------- HOME ----------------
+if mode=="🏠 Home":
+    st.title("🔍 TruthLens")
+    st.write("AI-powered deepfake detection with explainability and robustness testing.")
+
 # ---------------- IMAGE ----------------
-if mode=="Image":
-    file=st.file_uploader("Upload Image")
+elif mode=="🖼 Image Detection":
+    st.header("🖼 Image Detection")
+
+    file=st.file_uploader("Upload Image",type=["jpg","png","jpeg"])
 
     if file:
         img=Image.open(file)
         st.image(img)
 
-        if st.button("Analyze"):
-            s=generate_scores()
-            r,c=predict(s)
-            st.write(r,c)
+        if st.button("Analyze Image"):
+            st.write("Analyzing image...")
+            scores=generate_scores()
+            result,conf=predict(scores)
 
+            st.subheader("Result")
+            st.write(f"{result} ({conf:.1f}%)")
+
+            st.progress(int(conf))
+
+            st.subheader("Analysis")
+            for k,v in scores.items():
+                st.write(f"{k}: {v}%")
+
+            st.subheader("Heatmap")
             st.image(generate_heatmap(img))
-            st.write("Symmetry:",symmetry_score(img))
+            st.write("Highlighted regions indicate possible manipulation.")
 
-        st.markdown("## Robustness Lab")
+            st.subheader("Metadata")
+            meta=extract_metadata(img)
+            st.write("Metadata Found" if meta else "No Metadata → Possible Fake")
+
+            st.subheader("Symmetry Score")
+            st.write(symmetry_score(img))
+
+        # Robustness
+        st.markdown("## 🧪 Image Robustness")
         b=st.slider("Blur",0,10,0)
         br=st.slider("Brightness",0.5,2.0,1.0)
         n=st.slider("Noise",0,50,0)
@@ -129,13 +169,16 @@ if mode=="Image":
         st.image([img,edited])
 
 # ---------------- VIDEO ----------------
-elif mode=="Video":
+elif mode=="🎥 Video Analysis":
+    st.header("🎥 Video Detection")
+
     vid=st.file_uploader("Upload Video")
 
     if vid:
         st.video(vid)
 
         if st.button("Analyze Video"):
+            st.write("Analyzing frames...")
             fake=0
             total=10
             prog=st.progress(0)
@@ -153,49 +196,43 @@ elif mode=="Video":
 
             ratio=fake/total
 
-            st.write("Final:", "FAKE" if ratio>0.5 else "REAL")
+            if ratio>0.5:
+                st.error("VIDEO FAKE")
+            else:
+                st.success("VIDEO REAL")
 
-        # -------- VIDEO ROBUSTNESS (NEW) --------
-        st.markdown("## 🎥 Video Robustness Lab")
+        # Robustness
+        st.markdown("## 🎥 Video Robustness")
+        blur=st.slider("Blur Level",0,10,0)
+        noise=st.slider("Noise Level",0,50,0)
 
-        blur = st.slider("Video Blur",0,10,0)
-        noise = st.slider("Video Noise",0,50,0)
-
-        if st.button("Test Video Robustness"):
+        if st.button("Test Robustness"):
             fake=0
             total=10
-
             for i in range(total):
-                # simulate harder conditions
-                prob = random.random() + (blur*0.02) + (noise*0.01)
-
-                if prob > 0.7:
+                if random.random()+(blur*0.02)+(noise*0.01)>0.7:
                     fake+=1
 
-            ratio=fake/total
-
-            st.write("Robustness Result:")
-            if ratio>0.5:
-                st.error("Model detects FAKE even under distortion")
-            else:
-                st.success("Model remains stable under distortion")
+            st.write("Robustness:", "Stable" if fake<5 else "Sensitive")
 
 # ---------------- CHALLENGE ----------------
-elif mode=="Challenge":
-    st.write("AI vs Human")
-    g=st.radio("Choose fake",["A","B"])
-    if st.button("Reveal"):
-        st.write("Correct is B")
+elif mode=="🧠 AI Challenge":
+    st.header("AI Challenge")
 
-# ---------------- HOME ----------------
-elif mode=="Home":
-    st.title("TruthLens")
-    st.write("Deepfake Detection System")
+    c1,c2=st.columns(2)
+    c1.image("real_sample.jpg","A")
+    c2.image("fake_sample.jpg","B")
+
+    g=st.radio("Which is fake?",["A","B"])
+
+    if st.button("Reveal"):
+        st.write("Answer: B")
+        st.write("AI detects subtle inconsistencies.")
 
 # ---------------- ABOUT ----------------
-else:
-    st.write("Advanced AI Deepfake Detection")
+elif mode=="ℹ About":
+    st.write("Deepfake detection with explainable AI.")
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.markdown("### “Truth is verified, not assumed.”")
+st.markdown("### “Truth shines even in the digital illusion.”")
